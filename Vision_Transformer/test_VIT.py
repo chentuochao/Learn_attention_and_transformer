@@ -135,6 +135,7 @@ def train_all(model, args):
                 optimizer.zero_grad()
 
                 global_step += 1
+        print("Train loss in Epoch %d, %.3f"%(e, losses.avg))
         with torch.no_grad():
             accuracy = valid(args, model, test_loader)
             print("Validate loss and accuracy in Epoch %d, (%.3f, %.3f)"%(e, losses.avg, accuracy))
