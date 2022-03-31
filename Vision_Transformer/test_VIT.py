@@ -20,6 +20,8 @@ import ml_collections
 from Transformer import VisionTransformer
 from Dataloader import get_loader
 from tqdm import tqdm
+from scheduler import  WarmupLinearSchedule, WarmupCosineSchedule
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -52,7 +54,7 @@ def count_parameters(model):
 def get_b16_config():
     """Returns the ViT-B/16 configuration."""
     config = ml_collections.ConfigDict()
-    config.patche_size = 16 #patch size
+    config.patch_size = 16 #patch size
     config.embed_size = 768 # the 
     config.feedforward_dim = 3072 # size for the feedforward layer
     config.num_heads = 12 # number of attention head 
@@ -63,11 +65,10 @@ def get_b16_config():
     return config
 
 
-device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-print("Device:", device)
 
 
-def valid(args, model, test_loader):
+
+def valid(args, model, test_loader,device):
     model.eval()
     val_loss = AverageMeter()
     all_preds, all_label = [], []
@@ -97,7 +98,7 @@ def valid(args, model, test_loader):
 
 
 
-def train_all(model, args):
+def train_all(model, args, device):
     args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
     train_loader, test_loader = get_loader(args)
     
@@ -107,9 +108,9 @@ def train_all(model, args):
                                 weight_decay=args.weight_decay)
     T_total = args.num_steps
     if args.decay_type == "cosine":
-        scheduler = optim.WarmupCosineSchedule(optimizer, warmup_steps=args.warmup_steps, t_total=T_total)
+        scheduler = WarmupCosineSchedule(optimizer, warmup_steps=args.warmup_steps, t_total=T_total)
     else:
-        scheduler = optim.WarmupLinearSchedule(optimizer, warmup_steps=args.warmup_steps, t_total=T_total)
+        scheduler = WarmupLinearSchedule(optimizer, warmup_steps=args.warmup_steps, t_total=T_total)
     
     losses = AverageMeter()
     global_step, best_acc = 0, 0
@@ -137,7 +138,7 @@ def train_all(model, args):
                 global_step += 1
         print("Train loss in Epoch %d, %.3f"%(e, losses.avg))
         with torch.no_grad():
-            accuracy = valid(args, model, test_loader)
+            accuracy = valid(args, model, test_loader, device)
             print("Validate loss and accuracy in Epoch %d, (%.3f, %.3f)"%(e, losses.avg, accuracy))
         if accuracy > best_acc:
             save_model(args, model)
@@ -196,14 +197,18 @@ def main():
 
     num_classes = 10 if args.dataset == "cifar10" else 100
     config = get_b16_config()
+    device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+    print("Devicessss:", device)
+
 
     NUM_PATCH  = (args.img_size//config.patch_size)*(args.img_size//config.patch_size)
-    model = VisionTransformer( embed_dim=config.embed_dim, hidden_dim = config.feedforward_dim, num_channels=3, num_heads=config.num_heads, num_layers=config.num_layers, num_classes = num_classes, patch_size= config.patch_size, num_patches = NUM_PATCH, dropout = config.dropout_rate)
+    model = VisionTransformer( embed_dim=config.embed_size, hidden_dim = config.feedforward_dim, num_channels=3, num_heads=config.num_heads, num_layers=config.num_layers, num_classes = num_classes, patch_size= config.patch_size, num_patches = NUM_PATCH, dropout = config.dropout_rate)
     #model.load_from(np.load(args.pretrained_dir))
     model.to(device)
     num_params = count_parameters(model)
-    print("Number of parameters: ", num_params)
+    print("Number of parameters: %.3fe6"%num_params)
 
+    train_all(model, args, device)
 
 
 

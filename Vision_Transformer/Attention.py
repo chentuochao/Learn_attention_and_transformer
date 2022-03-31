@@ -29,14 +29,15 @@ class Attention(nn.Module):
         q_dim = query.size()[-1]
         k_dim = key.size()[-1]
         assert(q_dim == k_dim)
-        score = torch.bmm(query, key.transpose(-2, -1)) # (batch, q_len, k_len):
+        #print(query.shape, key.shape)
+        score = torch.matmul(query, key.transpose(-2, -1)) # (batch, q_len, k_len):
         score = score/math.sqrt(k_dim)
 
         if mask is not None:
             score.masked_fill_(mask==0, -float('Inf'))
 
         attn = F.softmax(score, -1)
-        context = torch.bmm(attn, value)
+        context = torch.matmul(attn, value)
         return context, attn
 
 class Multi_Head_Attention(nn.Module):

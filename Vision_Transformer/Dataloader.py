@@ -9,9 +9,6 @@ logger = logging.getLogger(__name__)
 
 
 def get_loader(args):
-    if args.local_rank not in [-1, 0]:
-        torch.distributed.barrier()
-
     transform_train = transforms.Compose([
         transforms.RandomResizedCrop((args.img_size, args.img_size), scale=(0.05, 1.0)),
         transforms.ToTensor(),
@@ -31,8 +28,7 @@ def get_loader(args):
         testset = datasets.CIFAR10(root="./data",
                                    train=False,
                                    download=True,
-                                   transform=transform_test) if args.local_rank in [-1, 0] else None
-
+                                   transform=transform_test) 
     else:
         trainset = datasets.CIFAR100(root="./data",
                                      train=True,
@@ -41,11 +37,10 @@ def get_loader(args):
         testset = datasets.CIFAR100(root="./data",
                                     train=False,
                                     download=True,
-                                    transform=transform_test) if args.local_rank in [-1, 0] else None
-    if args.local_rank == 0:
-        torch.distributed.barrier()
+                                    transform=transform_test)
 
-    train_sampler = RandomSampler(trainset) if args.local_rank == -1 else DistributedSampler(trainset)
+
+    train_sampler = RandomSampler(trainset) 
     test_sampler = SequentialSampler(testset)
     train_loader = DataLoader(trainset,
                               sampler=train_sampler,

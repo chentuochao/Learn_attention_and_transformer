@@ -98,7 +98,7 @@ class Encoder_Layer(nn.Module):
         self.norm2 = nn.LayerNorm(input_dim)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x, mask):
+    def forward(self, x, mask=None):
         ## x - (batch_size, len_seq, input_dim)
         atten_out, weights = self.multi_atten(x, x, x, mask)
         atten_out =  x + self.dropout(atten_out)
@@ -187,7 +187,7 @@ class VisionTransformer(nn.Module):
 
     def calculate_loss(self, batch, mode="train"):
         imgs, labels = batch
-        preds = self.model(imgs)
+        preds = self.forward(imgs)
         loss = F.cross_entropy(preds, labels)
         acc = (preds.argmax(dim=-1) == labels).float().mean()
 
